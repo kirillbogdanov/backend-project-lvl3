@@ -1,0 +1,33 @@
+{
+  "name": "@kirillbogdanov/backend-project-lvl3",
+  "version": "0.0.1",
+  "description": "page-loader",
+  "main": "index.js",
+  "type": "module",
+  "bin": {
+    "page-loader": "bin/page-loader.js"
+  },
+  "engines": {
+    "node": ">=14"
+  },
+  "scripts": {
+    "test": "npx -n --experimental-vm-modules -n --no-warnings jest --passWithNoTests"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kirillbogdanov/backend-project-lvl3.git"
+  },
+  "author": "Kirill Bogdanov",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/kirillbogdanov/backend-project-lvl3/issues"
+  },
+  "homepage": "https://github.com/kirillbogdanov/backend-project-lvl3#readme",
+  "devDependencies": {
+    "eslint": "^7.11.0",
+    "eslint-config-airbnb-base": "^14.2.0",
+    "eslint-plugin-import": "^2.22.1",
+    "eslint-plugin-jest": "^24.1.0",
+    "jest": "^26.5.2"
+  }
+}
