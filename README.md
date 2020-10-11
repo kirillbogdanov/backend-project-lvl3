@@ -25,7 +25,7 @@ $ open /var/tmp/ru-hexlet-io-courses.html
 ```
 As dependency:
 ```js
-import pageLoader from '../backend-project-lvl2';
+import pageLoader from '../backend-project-lvl3';
 
 await pageLoader('https://ru.hexlet.io/courses', '/var/tmp');
 ```
