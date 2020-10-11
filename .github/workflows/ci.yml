@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    name: test
+    runs-on: ubuntu-18.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+      - name: Install Node js
+        uses: actions/setup-node@v1
+        with:
+          node-version: 14.3
+      - name: Install dependencies
+        run: make install-deps
+      - name: Run linter
+        run: make lint
+      - name: Capture test coverage and send to CodeClimate
+        uses: paambaati/codeclimate-action@v2.6.0
+        with:
+          coverageCommand: make test-coverage
+        env:
+          CC_TEST_REPORTER_ID: ${{ secrets.CC_TEST_REPORTER_ID }}
