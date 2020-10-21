@@ -25,7 +25,7 @@ $ open /var/tmp/ru-hexlet-io-courses.html
 ```
 As dependency:
 ```js
-import pageLoader from '../backend-project-lvl2';
+import pageLoader from '../backend-project-lvl3';
 
 await pageLoader('https://ru.hexlet.io/courses', '/var/tmp');
 ```
@@ -41,7 +41,7 @@ Usage: page-loader [options] <pageUrl>
 Downloads the page on specified url to output directory path.
 
 Options:
-  --output [dirPath]  output directory path (default: "/Users/kirillbogdanov/Desktop/repos/backend-project-lvl3")
+  --output [dirPath]  output directory path (default: "process.cwd()")
   -V, --version       output the version number
   -h, --help          display help for command
 ```
