@@ -20,15 +20,36 @@ beforeEach(async () => {
 
 test('pageLoader', async () => {
   const testPageUrl = new URL('https://test-page.com/test-page');
+  const img1Url = new URL('https://test-page.com/assets/professions/nodejs.png');
+  const img2Url = new URL('https://test-page.com/assets/doge.jpg');
+
   nock(new RegExp(testPageUrl.hostname))
     .get(testPageUrl.pathname)
     .replyWithFile(200, getFixturePath('testPage.html'));
-  const expected = await readFixtureFile('testPage.html');
+  nock(new RegExp(img1Url.hostname))
+    .get(img1Url.pathname)
+    .replyWithFile(200, getFixturePath('nodejs.png'));
+  nock(new RegExp(img2Url.hostname))
+    .get(img2Url.pathname)
+    .replyWithFile(200, getFixturePath('doge.jpg'));
+
+  const expectedHtml = await readFixtureFile('resultPage.html');
+  const expectedImg1 = await readFixtureFile('nodejs.png');
+  const expectedImg2 = await readFixtureFile('doge.jpg');
 
   await pageLoader(testPageUrl.toString(), resultDirPath);
 
-  const resultFilePath = path.join(resultDirPath, 'test-page-com-test-page.html');
-  const result = await fs.readFile(resultFilePath, 'utf-8');
+  const resultHtmlPath = path.join(resultDirPath, 'test-page-com-test-page.html');
+  const resultHtml = await fs.readFile(resultHtmlPath, 'utf-8');
+  expect(resultHtml).toBe(expectedHtml);
 
-  expect(result).toBe(expected);
+  const resultImg1Path = path.join(resultDirPath,
+    'test-page-com-test-page_files/test-page-com-assets-professions-nodejs.png');
+  const resultImg1 = await fs.readFile(resultImg1Path, 'utf-8');
+  expect(resultImg1).toBe(expectedImg1);
+
+  const resultImg2Path = path.join(resultDirPath,
+    'test-page-com-test-page_files/test-page-com-assets-doge.jpg');
+  const resultImg2 = await fs.readFile(resultImg2Path, 'utf-8');
+  expect(resultImg2).toBe(expectedImg2);
 });
