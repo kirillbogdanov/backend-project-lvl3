@@ -19,37 +19,62 @@ beforeEach(async () => {
 });
 
 test('pageLoader', async () => {
-  const testPageUrl = new URL('https://test-page.com/test-page');
-  const img1Url = new URL('https://test-page.com/assets/professions/nodejs.png');
-  const img2Url = new URL('https://test-page.com/assets/doge.jpg');
+  const pageUrl = 'https://domain.com/page';
+  const stubs = [
+    {
+      url: pageUrl,
+      replyFixtureName: 'page.html',
+      expectedFixtureName: 'resultPage.html',
+      resultFilePath: 'domain-com-page.html',
+    },
+    {
+      url: 'https://domain.com/assets/professions/nodejs.png',
+      replyFixtureName: 'nodejs.png',
+      resultFilePath: 'domain-com-page_files/domain-com-assets-professions-nodejs.png',
+      expectedFixtureName: 'nodejs.png',
+    },
+    {
+      url: 'https://domain.com/assets/doge.jpg',
+      replyFixtureName: 'doge.jpg',
+      resultFilePath: 'domain-com-page_files/domain-com-assets-doge.jpg',
+      expectedFixtureName: 'doge.png',
+    },
+    {
+      url: 'https://domain.com/assets/application.css',
+      replyFixtureName: 'application.css',
+      resultFilePath: 'domain-com-page_files/domain-com-assets-application.css',
+      expectedFixtureName: 'application.css',
+    },
+    {
+      url: 'https://domain.com/courses',
+      replyFixtureName: 'courses.html',
+      resultFilePath: 'domain-com-page_files/domain-com-courses.html',
+      expectedFixtureName: 'courses.html',
+    },
+    {
+      url: 'https://domain.com/packs/js/runtime.js',
+      replyFixtureName: 'runtime.js',
+      resultFilePath: 'domain-com-page_files/domain-com-packs-js-runtime.js',
+      expectedFixtureName: 'runtime.js',
+    },
+  ];
 
-  nock(new RegExp(testPageUrl.hostname))
-    .get(testPageUrl.pathname)
-    .replyWithFile(200, getFixturePath('testPage.html'));
-  nock(new RegExp(img1Url.hostname))
-    .get(img1Url.pathname)
-    .replyWithFile(200, getFixturePath('nodejs.png'));
-  nock(new RegExp(img2Url.hostname))
-    .get(img2Url.pathname)
-    .replyWithFile(200, getFixturePath('doge.jpg'));
+  stubs.forEach(({ url, replyFixtureName }) => {
+    const parsedUrl = new URL(url);
 
-  const expectedHtml = await readFixtureFile('resultPage.html');
-  const expectedImg1 = await readFixtureFile('nodejs.png');
-  const expectedImg2 = await readFixtureFile('doge.jpg');
+    nock(parsedUrl.origin)
+      .get(parsedUrl.pathname)
+      .replyWithFile(200, getFixturePath(replyFixtureName));
+  });
 
-  await pageLoader(testPageUrl.toString(), resultDirPath);
+  await pageLoader(pageUrl, resultDirPath);
 
-  const resultHtmlPath = path.join(resultDirPath, 'test-page-com-test-page.html');
-  const resultHtml = await fs.readFile(resultHtmlPath, 'utf-8');
-  expect(resultHtml).toBe(expectedHtml);
+  await Promise.all(stubs.map(async ({ expectedFixtureName, resultFilePath }) => {
+    const expected = readFixtureFile(expectedFixtureName);
+    const result = fs.readFile(path.join(resultDirPath, resultFilePath), 'utf-8');
 
-  const resultImg1Path = path.join(resultDirPath,
-    'test-page-com-test-page_files/test-page-com-assets-professions-nodejs.png');
-  const resultImg1 = await fs.readFile(resultImg1Path, 'utf-8');
-  expect(resultImg1).toBe(expectedImg1);
+    await Promise.all([expected, result]);
 
-  const resultImg2Path = path.join(resultDirPath,
-    'test-page-com-test-page_files/test-page-com-assets-doge.jpg');
-  const resultImg2 = await fs.readFile(resultImg2Path, 'utf-8');
-  expect(resultImg2).toBe(expectedImg2);
+    return expect(result).toBe(expected);
+  }));
 });
