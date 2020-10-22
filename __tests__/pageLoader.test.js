@@ -37,7 +37,7 @@ test('pageLoader', async () => {
       url: 'https://domain.com/assets/doge.jpg',
       replyFixtureName: 'doge.jpg',
       resultFilePath: 'domain-com-page_files/domain-com-assets-doge.jpg',
-      expectedFixtureName: 'doge.png',
+      expectedFixtureName: 'doge.jpg',
     },
     {
       url: 'https://domain.com/assets/application.css',
@@ -70,10 +70,10 @@ test('pageLoader', async () => {
   await pageLoader(pageUrl, resultDirPath);
 
   await Promise.all(stubs.map(async ({ expectedFixtureName, resultFilePath }) => {
-    const expected = readFixtureFile(expectedFixtureName);
-    const result = fs.readFile(path.join(resultDirPath, resultFilePath), 'utf-8');
+    const expectedPromise = readFixtureFile(expectedFixtureName);
+    const resultPromise = fs.readFile(path.join(resultDirPath, resultFilePath), 'utf-8');
 
-    await Promise.all([expected, result]);
+    const [expected, result] = await Promise.all([expectedPromise, resultPromise]);
 
     return expect(result).toBe(expected);
   }));

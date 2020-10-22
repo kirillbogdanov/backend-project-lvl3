@@ -6,10 +6,16 @@ import { URL } from 'url';
 import path from 'path';
 import trimEnd from 'lodash.trimend';
 
+const tagToLinkAttrNameMapping = {
+  img: 'src',
+  link: 'href',
+  script: 'src',
+};
+
 const makeUrlSlug = (url) => {
   const urlWithoutScheme = url.hostname + trimEnd(url.pathname, '/');
 
-  return `${urlWithoutScheme.replace(/[^A-Za-z0-9](?!png|jpg)/g, '-')}`;
+  return `${urlWithoutScheme.replace(/(_|\/|(?<!\/\w*)\.)/g, '-')}`;
 };
 
 const downloadFile = (url, destination) => {
@@ -40,43 +46,51 @@ const pageLoader = (url, dirPath = process.cwd()) => {
 
   return axios.get(pageUrl.href)
     .then(({ data: html }) => {
+      const tagNamesToProcess = Object.keys(tagToLinkAttrNameMapping);
       const $ = cheerio.load(html, { decodeEntities: false, xmlMode: true });
-      const imgTags = $('img');
-      const images = [];
+      const files = [];
 
-      imgTags.each((i, elem) => {
-        const currentSrc = $(elem).attr('src');
-        const imgUrl = new URL(currentSrc, origin);
-        const imgSlug = makeUrlSlug(imgUrl);
-        const imgDestination = path.join(filesDirPath, imgSlug);
-        const relativeDestination = path.join(filesDirName, imgSlug);
+      tagNamesToProcess.forEach((tagName) => {
+        const tags = $(tagName);
+        const linkAttrName = tagToLinkAttrNameMapping[tagName];
 
-        images.push({ url: imgUrl.href, destination: imgDestination });
-        $(elem).attr('src', relativeDestination);
+        tags.each((i, elem) => {
+          const currentLink = $(elem).attr(linkAttrName);
+          const fileUrl = new URL(currentLink, origin);
+
+          if (fileUrl.origin === origin && currentLink) {
+            const fileSlug = makeUrlSlug(fileUrl);
+            const fileSlugWithExtname = !path.extname(fileSlug) ? `${fileSlug}.html` : fileSlug;
+            const fileDestination = path.join(filesDirPath, fileSlugWithExtname);
+            const fileRelativeDestination = path.join(filesDirName, fileSlugWithExtname);
+
+            files.push({ url: fileUrl.href, destination: fileDestination });
+            $(elem).attr(linkAttrName, fileRelativeDestination);
+          }
+        });
       });
 
-      const page = {
-        data: $.html(),
-        destination: resultFilePath,
-      };
-
       return {
-        page,
-        images,
+        page: {
+          data: $.html(),
+          destination: resultFilePath,
+        },
+        files,
       };
     })
     .then((data) => {
-      if (data.images.length > 0) {
+      if (data.files.length > 0) {
         return fs.mkdir(filesDirPath).then(() => data);
       }
 
       return data;
     })
-    .then(({ page, images }) => {
-      const imagesPromises = images
-        .map(({ url: imgUrl, destination }) => downloadFile(imgUrl, destination));
+    .then(({ page, files }) => {
+      const filesPromises = files.map(
+        ({ url: fileUrl, destination: fileDestination }) => downloadFile(fileUrl, fileDestination),
+      );
       const pagePromise = fs.writeFile(page.destination, page.data);
-      const promises = [...imagesPromises, pagePromise];
+      const promises = [...filesPromises, pagePromise];
 
       return Promise.all(promises);
     })
