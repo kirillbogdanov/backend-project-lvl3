@@ -5,6 +5,12 @@ import { createWriteStream } from 'fs';
 import { URL } from 'url';
 import path from 'path';
 import trimEnd from 'lodash.trimend';
+import debug from 'debug';
+import axiosDebugLog from 'axios-debug-log';
+
+const log = debug('page-loader');
+const axiosClient = axios.create();
+axiosDebugLog.addLogger(axiosClient);
 
 const tagToLinkAttrNameMapping = {
   img: 'src',
@@ -21,7 +27,7 @@ const makeUrlSlug = (url) => {
 const downloadFile = (url, destination) => {
   const writer = createWriteStream(destination);
 
-  return axios({
+  return axiosClient({
     method: 'get',
     responseType: 'stream',
     url,
@@ -32,7 +38,7 @@ const downloadFile = (url, destination) => {
       return new Promise((resolve, reject) => {
         writer.on('finish', resolve);
         writer.on('error', reject);
-      });
+      }).then(() => log(`Wrote ${url} to ${destination}`));
     });
 };
 
@@ -44,8 +50,10 @@ const pageLoader = (url, dirPath = process.cwd()) => {
   const filesDirName = `${pageSlug}_files`;
   const filesDirPath = path.join(dirPath, filesDirName);
 
-  return axios.get(pageUrl.href)
+  log(`Requesting ${url}`);
+  return axiosClient.get(pageUrl.href)
     .then(({ data: html }) => {
+      log('Page response received. Modifying HTML');
       const tagNamesToProcess = Object.keys(tagToLinkAttrNameMapping);
       const $ = cheerio.load(html, { decodeEntities: false, xmlMode: true });
       const files = [];
@@ -79,22 +87,33 @@ const pageLoader = (url, dirPath = process.cwd()) => {
       };
     })
     .then((data) => {
-      if (data.files.length > 0) {
-        return fs.mkdir(filesDirPath).then(() => data);
+      log('HTML modified');
+      const filesCount = data.files.length;
+
+      if (filesCount > 0) {
+        log(`${filesCount} page assets to download found. Creating files directory`);
+
+        return fs.mkdir(filesDirPath).then(() => {
+          log('Files directory created');
+          return data;
+        });
       }
 
+      log('No additional assets found. Skipping files directory creation');
       return data;
     })
     .then(({ page, files }) => {
+      log('Starting downloading page assets');
       const filesPromises = files.map(
         ({ url: fileUrl, destination: fileDestination }) => downloadFile(fileUrl, fileDestination),
       );
-      const pagePromise = fs.writeFile(page.destination, page.data);
+      const pagePromise = fs.writeFile(page.destination, page.data)
+        .then(() => log(`HTML written to ${page.destination}`));
       const promises = [...filesPromises, pagePromise];
 
       return Promise.all(promises);
     })
-    .catch((e) => console.error(e));
+    .catch((e) => log(e));
 };
 
 export default pageLoader;
