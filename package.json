@@ -11,7 +11,7 @@
     "node": ">=14"
   },
   "scripts": {
-    "test": "npx -n --experimental-vm-modules -n --no-warnings jest --passWithNoTests"
+    "test": "DEBUG=nock.*,axios,page-loader npx -n --experimental-vm-modules -n --no-warnings jest --passWithNoTests"
   },
   "repository": {
     "type": "git",
@@ -33,8 +33,10 @@
   },
   "dependencies": {
     "axios": "^0.20.0",
+    "axios-debug-log": "^0.8.0",
     "cheerio": "^1.0.0-rc.3",
     "commander": "^6.1.0",
+    "debug": "^4.2.0",
     "lodash.trimend": "^4.5.1"
   }
 }
