@@ -18,7 +18,11 @@ beforeEach(async () => {
   resultDirPath = await fs.mkdtemp(path.join(os.tmpdir(), 'page-loader-'));
 });
 
-test('pageLoader', async () => {
+afterEach(async () => {
+  await fs.rmdir(resultDirPath, { recursive: true });
+});
+
+test('Downloads html and page assets', async () => {
   const pageUrl = 'https://domain.com/page';
   const stubs = [
     {
@@ -77,4 +81,59 @@ test('pageLoader', async () => {
 
     return expect(result).toBe(expected);
   }));
+});
+
+test('Throws error if page response code is other than 200', async () => {
+  const pageUrl = new URL('https://domain.com/non-existent-page');
+
+  nock(pageUrl.origin)
+    .get(pageUrl.pathname)
+    .reply(404, 'Not found');
+
+  await expect(pageLoader(pageUrl.href, resultDirPath))
+    .rejects.toThrow(`Error while requesting ${pageUrl.href}:`);
+});
+
+test('Throws error if asset response code is other than 200', async () => {
+  const pageUrl = new URL('https://domain.com/one-img-page');
+  const imgUrl = new URL('https://domain.com/non-existent-image.png');
+
+  nock(pageUrl.origin)
+    .get(pageUrl.pathname)
+    .reply(200, `<img src="${imgUrl.pathname}"/>`);
+  nock(imgUrl.origin)
+    .get(imgUrl.pathname)
+    .reply(404, 'Not found');
+
+  await expect(pageLoader(pageUrl.href, resultDirPath))
+    .rejects.toThrow(`Error while requesting ${imgUrl.href}:`);
+});
+
+test('Throws error if files directory cannot be created', async () => {
+  const pageUrl = new URL('https://domain.com/page');
+  const imgUrl = new URL('https://domain.com/doge.png');
+  const filesDirName = 'domain-com-page_files';
+  const filesDirPath = path.join(resultDirPath, filesDirName);
+
+  nock(pageUrl.origin)
+    .get(pageUrl.pathname)
+    .reply(200, `<img src="${imgUrl.pathname}"/>`);
+
+  await fs.mkdir(filesDirPath);
+
+  await expect(pageLoader(pageUrl.href, resultDirPath))
+    .rejects.toThrow(`Error while creating files directory ${filesDirPath}:`);
+});
+
+test('Throws error if one of the files cannot be created', async () => {
+  const pageUrl = new URL('https://domain.com/page');
+  const dirPath = path.join(resultDirPath, 'non_existent_dir');
+  const filePath = path.join(dirPath, 'domain-com-page.html');
+
+  nock(pageUrl.origin)
+    .get(pageUrl.pathname)
+    .reply(200, '<html></html>');
+
+  await expect(pageLoader(pageUrl.href, dirPath))
+    .rejects.toThrow(`Error while writing file ${filePath}:`);
 });

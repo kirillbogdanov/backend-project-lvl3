@@ -10,7 +10,12 @@ program
   .description('Downloads the page on specified url to output directory path.')
   .version('0.0.1')
   .action((pageUrl) => {
-    pageLoader(pageUrl, program.output).then(() => {});
+    pageLoader(pageUrl, program.output)
+      .then(() => console.log(`Page was saved to ${program.output}`))
+      .catch((e) => {
+        console.error(e.message);
+        process.exit(1);
+      });
   });
 
 program.parse(process.argv);

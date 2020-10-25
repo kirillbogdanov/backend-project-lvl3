@@ -1,7 +1,6 @@
 import axios from 'axios';
 import cheerio from 'cheerio';
 import fs from 'fs/promises';
-import { createWriteStream } from 'fs';
 import { URL } from 'url';
 import path from 'path';
 import trimEnd from 'lodash.trimend';
@@ -24,23 +23,15 @@ const makeUrlSlug = (url) => {
   return `${urlWithoutScheme.replace(/(_|\/|(?<!\/\w*)\.)/g, '-')}`;
 };
 
-const downloadFile = (url, destination) => {
-  const writer = createWriteStream(destination);
+const requestGet = (url) => axiosClient.get(url, { responseType: 'arraybuffer' })
+  .catch((e) => {
+    throw new Error(`Error while requesting ${url}: ${e.message}`);
+  });
 
-  return axiosClient({
-    method: 'get',
-    responseType: 'stream',
-    url,
-  })
-    .then((response) => {
-      response.data.pipe(writer);
-
-      return new Promise((resolve, reject) => {
-        writer.on('finish', resolve);
-        writer.on('error', reject);
-      }).then(() => log(`Wrote ${url} to ${destination}`));
-    });
-};
+const writeFile = (destination, data) => fs.writeFile(destination, data)
+  .catch((e) => {
+    throw new Error(`Error while writing file ${destination}: ${e.message}`);
+  });
 
 const pageLoader = (url, dirPath = process.cwd()) => {
   const pageUrl = new URL(url);
@@ -50,8 +41,7 @@ const pageLoader = (url, dirPath = process.cwd()) => {
   const filesDirName = `${pageSlug}_files`;
   const filesDirPath = path.join(dirPath, filesDirName);
 
-  log(`Requesting ${url}`);
-  return axiosClient.get(pageUrl.href)
+  return requestGet(pageUrl.href)
     .then(({ data: html }) => {
       log('Page response received. Modifying HTML');
       const tagNamesToProcess = Object.keys(tagToLinkAttrNameMapping);
@@ -93,10 +83,14 @@ const pageLoader = (url, dirPath = process.cwd()) => {
       if (filesCount > 0) {
         log(`${filesCount} page assets to download found. Creating files directory`);
 
-        return fs.mkdir(filesDirPath).then(() => {
-          log('Files directory created');
-          return data;
-        });
+        return fs.mkdir(filesDirPath)
+          .then(() => {
+            log('Files directory created');
+            return data;
+          })
+          .catch((e) => {
+            throw new Error(`Error while creating files directory ${filesDirPath}: ${e.message}`);
+          });
       }
 
       log('No additional assets found. Skipping files directory creation');
@@ -105,15 +99,16 @@ const pageLoader = (url, dirPath = process.cwd()) => {
     .then(({ page, files }) => {
       log('Starting downloading page assets');
       const filesPromises = files.map(
-        ({ url: fileUrl, destination: fileDestination }) => downloadFile(fileUrl, fileDestination),
+        ({ url: fileUrl, destination: fileDestination }) => requestGet(fileUrl)
+          .then(({ data }) => writeFile(fileDestination, data))
+          .then(() => log(`Asset ${fileUrl} written to ${fileDestination}`)),
       );
-      const pagePromise = fs.writeFile(page.destination, page.data)
+      const pagePromise = writeFile(page.destination, page.data)
         .then(() => log(`HTML written to ${page.destination}`));
       const promises = [...filesPromises, pagePromise];
 
       return Promise.all(promises);
-    })
-    .catch((e) => log(e));
+    });
 };
 
 export default pageLoader;
