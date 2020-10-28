@@ -21,7 +21,7 @@ const tagToLinkAttrNameMapping = {
 const makeUrlSlug = (url) => {
   const urlWithoutScheme = url.hostname + trimEnd(url.pathname, '/');
 
-  return `${urlWithoutScheme.replace(/(_|\/|(?<!\/\D*)\.)/g, '-')}`;
+  return `${urlWithoutScheme.replace(/(_|\/|(?<!\/[^/]*)\.)/g, '-')}`;
 };
 
 const requestGet = (url) => axiosClient.get(url, { responseType: 'arraybuffer' })
