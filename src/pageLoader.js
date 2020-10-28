@@ -46,7 +46,7 @@ const pageLoader = (url, dirPath = process.cwd()) => {
     .then(({ data: html }) => {
       log('Page response received. Modifying HTML');
       const tagNamesToProcess = Object.keys(tagToLinkAttrNameMapping);
-      const $ = cheerio.load(html, { decodeEntities: false, xmlMode: true });
+      const $ = cheerio.load(html, { decodeEntities: false });
       const files = [];
 
       tagNamesToProcess.forEach((tagName) => {
