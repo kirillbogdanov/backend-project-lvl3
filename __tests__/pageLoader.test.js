@@ -76,12 +76,11 @@ test('Downloads html and page assets', async () => {
 
   await Promise.all(stubs.map(async ({ expectedFixtureName, resultFilePath }) => {
     const expectedPromise = readFixtureFile(expectedFixtureName);
-    const resultPromise = fs.readFile(path.join(resultDirPath, resultFilePath), 'utf-8')
-      .then((data) => data.trim());
+    const resultPromise = fs.readFile(path.join(resultDirPath, resultFilePath), 'utf-8');
 
     const [expected, result] = await Promise.all([expectedPromise, resultPromise]);
 
-    return expect(result).toBe(expected);
+    return expect(result.trim()).toBe(expected);
   }));
 });
 
