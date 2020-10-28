@@ -45,4 +45,4 @@ Options:
   -V, --version       output the version number
   -h, --help          display help for command
 ```
-[![asciicast](https://asciinema.org/a/ucf45jqFxwGBA6XHT9lD6xolb.svg)](https://asciinema.org/a/ucf45jqFxwGBA6XHT9lD6xolb)
+[![asciicast](https://asciinema.org/a/NXkS1cabaP7XEQo4NpBjLDoD9.svg)](https://asciinema.org/a/NXkS1cabaP7XEQo4NpBjLDoD9)
