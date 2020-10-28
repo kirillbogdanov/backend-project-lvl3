@@ -11,7 +11,8 @@ nock.disableNetConnect();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const getFixturePath = (fileName) => path.join(__dirname, '..', '__fixtures__', fileName);
-const readFixtureFile = async (fileName) => fs.readFile(getFixturePath(fileName), 'utf-8');
+const readFixtureFile = async (fileName) => fs.readFile(getFixturePath(fileName), 'utf-8')
+  .then((data) => data.trim());
 let resultDirPath;
 
 beforeEach(async () => {
@@ -75,7 +76,8 @@ test('Downloads html and page assets', async () => {
 
   await Promise.all(stubs.map(async ({ expectedFixtureName, resultFilePath }) => {
     const expectedPromise = readFixtureFile(expectedFixtureName);
-    const resultPromise = fs.readFile(path.join(resultDirPath, resultFilePath), 'utf-8');
+    const resultPromise = fs.readFile(path.join(resultDirPath, resultFilePath), 'utf-8')
+      .then((data) => data.trim());
 
     const [expected, result] = await Promise.all([expectedPromise, resultPromise]);
 
