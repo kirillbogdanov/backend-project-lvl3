@@ -6,6 +6,7 @@ import path from 'path';
 import trimEnd from 'lodash.trimend';
 import debug from 'debug';
 import axiosDebugLog from 'axios-debug-log';
+import Listr from 'listr';
 
 const log = debug('page-loader');
 const axiosClient = axios.create();
@@ -20,7 +21,7 @@ const tagToLinkAttrNameMapping = {
 const makeUrlSlug = (url) => {
   const urlWithoutScheme = url.hostname + trimEnd(url.pathname, '/');
 
-  return `${urlWithoutScheme.replace(/(_|\/|(?<!\/\w*)\.)/g, '-')}`;
+  return `${urlWithoutScheme.replace(/(_|\/|(?<!\/\D*)\.)/g, '-')}`;
 };
 
 const requestGet = (url) => axiosClient.get(url, { responseType: 'arraybuffer' })
@@ -62,7 +63,9 @@ const pageLoader = (url, dirPath = process.cwd()) => {
             const fileDestination = path.join(filesDirPath, fileSlugWithExtname);
             const fileRelativeDestination = path.join(filesDirName, fileSlugWithExtname);
 
-            files.push({ url: fileUrl.href, destination: fileDestination });
+            if (!files.find((file) => file.url === fileUrl.href)) {
+              files.push({ url: fileUrl.href, destination: fileDestination });
+            }
             $(elem).attr(linkAttrName, fileRelativeDestination);
           }
         });
@@ -98,14 +101,18 @@ const pageLoader = (url, dirPath = process.cwd()) => {
     })
     .then(({ page, files }) => {
       log('Starting downloading page assets');
-      const filesPromises = files.map(
-        ({ url: fileUrl, destination: fileDestination }) => requestGet(fileUrl)
-          .then(({ data }) => writeFile(fileDestination, data))
-          .then(() => log(`Asset ${fileUrl} written to ${fileDestination}`)),
+      const filesTasks = files.map(
+        ({ url: fileUrl, destination: fileDestination }) => ({
+          title: fileUrl,
+          task: () => requestGet(fileUrl)
+            .then(({ data }) => writeFile(fileDestination, data))
+            .then(() => log(`Asset ${fileUrl} written to ${fileDestination}`)),
+        }),
       );
+      const listr = new Listr(filesTasks, { concurrent: true });
       const pagePromise = writeFile(page.destination, page.data)
         .then(() => log(`HTML written to ${page.destination}`));
-      const promises = [...filesPromises, pagePromise];
+      const promises = [listr.run(), pagePromise];
 
       return Promise.all(promises);
     });
