@@ -45,4 +45,17 @@ Options:
   -V, --version       output the version number
   -h, --help          display help for command
 ```
-[![asciicast](https://asciinema.org/a/NXkS1cabaP7XEQo4NpBjLDoD9.svg)](https://asciinema.org/a/NXkS1cabaP7XEQo4NpBjLDoD9)
+
+# Usage
+## Download page
+[![asciicast](https://asciinema.org/a/sY8Unr35ZGOyLTr5ZW7NOm9R5.svg)](https://asciinema.org/a/sY8Unr35ZGOyLTr5ZW7NOm9R5)
+## Download page images
+[![asciicast](https://asciinema.org/a/liLucBxjjQ1nTglfJierhmpXG.svg)](https://asciinema.org/a/liLucBxjjQ1nTglfJierhmpXG)
+## Download page resources
+[![asciicast](https://asciinema.org/a/tNwQc1MjPoG2yfzYkz0tvCkVK.svg)](https://asciinema.org/a/tNwQc1MjPoG2yfzYkz0tvCkVK)
+## Debug
+[![asciicast](https://asciinema.org/a/pZmWAEq1uLTjy42isdTfWOw5U.svg)](https://asciinema.org/a/pZmWAEq1uLTjy42isdTfWOw5U)
+## Error handling
+[![asciicast](https://asciinema.org/a/I19oGnhQERwFo0qpNpVRytgr1.svg)](https://asciinema.org/a/I19oGnhQERwFo0qpNpVRytgr1)
+## Progress logging
+[![asciicast](https://asciinema.org/a/R2VFgIo3UO9efQ7F6zDx5VEjE.svg)](https://asciinema.org/a/R2VFgIo3UO9efQ7F6zDx5VEjE)
