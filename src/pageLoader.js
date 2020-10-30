@@ -34,6 +34,15 @@ const writeFile = (destination, data) => fs.writeFile(destination, data)
     throw new Error(`Error while writing file ${destination}: ${e.message}`);
   });
 
+const makeLoadResourcesTasks = (resources) => resources.map(
+  ({ url: fileUrl, destination: fileDestination }) => ({
+    title: fileUrl,
+    task: () => requestGet(fileUrl)
+      .then(({ data }) => writeFile(fileDestination, data))
+      .then(() => log(`Resource ${fileUrl} written to ${fileDestination}`)),
+  }),
+);
+
 const pageLoader = (url, dirPath = process.cwd()) => {
   const pageUrl = new URL(url);
   const { origin } = pageUrl;
@@ -42,12 +51,13 @@ const pageLoader = (url, dirPath = process.cwd()) => {
   const filesDirName = `${pageSlug}_files`;
   const filesDirPath = path.join(dirPath, filesDirName);
 
+  log('Downloading HTML');
   return requestGet(pageUrl.href)
     .then(({ data: html }) => {
       log('Page response received. Modifying HTML');
       const tagNamesToProcess = Object.keys(tagToLinkAttrNameMapping);
       const $ = cheerio.load(html, { decodeEntities: false });
-      const files = [];
+      const resources = [];
 
       tagNamesToProcess.forEach((tagName) => {
         const tags = $(tagName);
@@ -63,8 +73,8 @@ const pageLoader = (url, dirPath = process.cwd()) => {
             const fileDestination = path.join(filesDirPath, fileSlugWithExtname);
             const fileRelativeDestination = path.join(filesDirName, fileSlugWithExtname);
 
-            if (!files.find((file) => file.url === fileUrl.href)) {
-              files.push({ url: fileUrl.href, destination: fileDestination });
+            if (!resources.find((file) => file.url === fileUrl.href)) {
+              resources.push({ url: fileUrl.href, destination: fileDestination });
             }
             $(elem).attr(linkAttrName, fileRelativeDestination);
           }
@@ -76,15 +86,15 @@ const pageLoader = (url, dirPath = process.cwd()) => {
           data: $.html(),
           destination: resultFilePath,
         },
-        files,
+        resources,
       };
     })
     .then((data) => {
       log('HTML modified');
-      const filesCount = data.files.length;
+      const filesCount = data.resources.length;
 
       if (filesCount > 0) {
-        log(`${filesCount} page assets to download found. Creating files directory`);
+        log(`${filesCount} page resources to download found. Creating files directory`);
 
         return fs.mkdir(filesDirPath)
           .then(() => {
@@ -96,19 +106,12 @@ const pageLoader = (url, dirPath = process.cwd()) => {
           });
       }
 
-      log('No additional assets found. Skipping files directory creation');
+      log('No additional resources found. Skipping files directory creation');
       return data;
     })
-    .then(({ page, files }) => {
-      log('Starting downloading page assets');
-      const filesTasks = files.map(
-        ({ url: fileUrl, destination: fileDestination }) => ({
-          title: fileUrl,
-          task: () => requestGet(fileUrl)
-            .then(({ data }) => writeFile(fileDestination, data))
-            .then(() => log(`Asset ${fileUrl} written to ${fileDestination}`)),
-        }),
-      );
+    .then(({ page, resources }) => {
+      log('Starting downloading page resources');
+      const filesTasks = makeLoadResourcesTasks(resources);
       const listr = new Listr(filesTasks, { concurrent: true });
       const pagePromise = writeFile(page.destination, page.data)
         .then(() => log(`HTML written to ${page.destination}`));
