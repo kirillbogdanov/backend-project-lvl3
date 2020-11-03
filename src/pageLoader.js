@@ -24,6 +24,14 @@ const makeUrlSlug = (url) => {
   return `${urlWithoutScheme.replace(/(_|\/|(?<!\/[^/]*)\.)/g, '-')}`;
 };
 
+const makeFileName = (url) => {
+  const fileSlug = makeUrlSlug(url);
+
+  return !path.extname(fileSlug) ? `${fileSlug}.html` : fileSlug;
+};
+
+const makePageFilesDirName = (url) => `${makeUrlSlug(url)}_files`;
+
 const requestGet = (url) => axiosClient.get(url, { responseType: 'arraybuffer' })
   .catch((e) => {
     throw new Error(`Error while requesting ${url}: ${e.message}`);
@@ -38,17 +46,16 @@ const makeLoadResourcesTasks = (resources) => resources.map(
   ({ url: fileUrl, destination: fileDestination }) => ({
     title: fileUrl,
     task: () => requestGet(fileUrl)
-      .then(({ data }) => writeFile(fileDestination, data))
-      .then(() => log(`Resource ${fileUrl} written to ${fileDestination}`)),
+      .then(({ data }) => writeFile(fileDestination, data)),
   }),
 );
 
 const pageLoader = (url, dirPath = process.cwd()) => {
   const pageUrl = new URL(url);
   const { origin } = pageUrl;
-  const pageSlug = makeUrlSlug(pageUrl);
-  const resultFilePath = path.join(dirPath, `${pageSlug}.html`);
-  const filesDirName = `${pageSlug}_files`;
+  const pageFileName = makeFileName(pageUrl);
+  const resultFilePath = path.join(dirPath, pageFileName);
+  const filesDirName = makePageFilesDirName(pageUrl);
   const filesDirPath = path.join(dirPath, filesDirName);
 
   log('Downloading HTML');
@@ -68,10 +75,9 @@ const pageLoader = (url, dirPath = process.cwd()) => {
           const fileUrl = new URL(currentLink, origin);
 
           if (fileUrl.origin === origin && currentLink) {
-            const fileSlug = makeUrlSlug(fileUrl);
-            const fileSlugWithExtname = !path.extname(fileSlug) ? `${fileSlug}.html` : fileSlug;
-            const fileDestination = path.join(filesDirPath, fileSlugWithExtname);
-            const fileRelativeDestination = path.join(filesDirName, fileSlugWithExtname);
+            const fileName = makeFileName(fileUrl);
+            const fileDestination = path.join(filesDirPath, fileName);
+            const fileRelativeDestination = path.join(filesDirName, fileName);
 
             if (!resources.find((file) => file.url === fileUrl.href)) {
               resources.push({ url: fileUrl.href, destination: fileDestination });
@@ -113,9 +119,12 @@ const pageLoader = (url, dirPath = process.cwd()) => {
       log('Starting downloading page resources');
       const filesTasks = makeLoadResourcesTasks(resources);
       const listr = new Listr(filesTasks, { concurrent: true });
+
+      const resourcesPromise = listr.run()
+        .then(() => log('Page resources downloaded'));
       const pagePromise = writeFile(page.destination, page.data)
         .then(() => log(`HTML written to ${page.destination}`));
-      const promises = [listr.run(), pagePromise];
+      const promises = [resourcesPromise, pagePromise];
 
       return Promise.all(promises);
     });
