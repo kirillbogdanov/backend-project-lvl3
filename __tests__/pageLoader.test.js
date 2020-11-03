@@ -23,7 +23,7 @@ afterEach(async () => {
   await fs.rmdir(resultDirPath, { recursive: true });
 });
 
-test('Downloads html and page assets', async () => {
+test('Downloads html and page resources', async () => {
   const pageUrl = 'https://domain.com/page';
   const stubs = [
     {
@@ -95,7 +95,7 @@ test('Throws error if page response code is other than 200', async () => {
     .rejects.toThrow(`Error while requesting ${pageUrl.href}:`);
 });
 
-test('Throws error if asset response code is other than 200', async () => {
+test('Throws error if resource response code is other than 200', async () => {
   const pageUrl = new URL('https://domain.com/one-img-page');
   const imgUrl = new URL('https://domain.com/non-existent-image.png');
 
