@@ -3,7 +3,6 @@ import cheerio from 'cheerio';
 import fs from 'fs/promises';
 import { URL } from 'url';
 import path from 'path';
-import trimEnd from 'lodash.trimend';
 import debug from 'debug';
 import axiosDebugLog from 'axios-debug-log';
 import Listr from 'listr';
@@ -19,15 +18,18 @@ const tagToLinkAttrNameMapping = {
 };
 
 const makeUrlSlug = (url) => {
-  const urlWithoutScheme = url.hostname + trimEnd(url.pathname, '/');
+  const urlWithoutScheme = url.hostname + url.pathname;
 
-  return `${urlWithoutScheme.replace(/(_|\/|(?<!\/[^/]*)\.)/g, '-')}`;
+  return urlWithoutScheme.replace(/\W/g, '-');
 };
 
 const makeFileName = (url) => {
-  const fileSlug = makeUrlSlug(url);
+  const originalExtname = path.extname(url.href);
+  const extname = originalExtname || '.html';
+  const urlWithoutExtname = new URL(url.href.replace(originalExtname, ''));
+  const fileSlug = makeUrlSlug(urlWithoutExtname);
 
-  return !path.extname(fileSlug) ? `${fileSlug}.html` : fileSlug;
+  return `${fileSlug}${extname}`;
 };
 
 const makePageFilesDirName = (url) => `${makeUrlSlug(url)}_files`;
@@ -79,7 +81,8 @@ const downloadResources = (resources) => {
   const tasks = resources.map(({ url: fileUrl, destination: fileDestination }) => ({
     title: fileUrl,
     task: () => requestGet(fileUrl)
-      .then(({ data }) => writeFile(fileDestination, data)),
+      .then(({ data }) => writeFile(fileDestination, data))
+      .then(() => log(`Resource ${fileUrl} written to ${fileDestination}`)),
   }));
 
   const listr = new Listr(tasks, { concurrent: true });
