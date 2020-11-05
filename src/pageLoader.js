@@ -1,94 +1,17 @@
-import axios from 'axios';
-import cheerio from 'cheerio';
 import fs from 'fs/promises';
 import { URL } from 'url';
 import path from 'path';
 import debug from 'debug';
-import axiosDebugLog from 'axios-debug-log';
-import Listr from 'listr';
+import {
+  makeFileName,
+  makePageFilesDirName,
+  loadContent,
+  modifyHtml,
+  downloadResources,
+  writeFile,
+} from './utils.js';
 
 const log = debug('page-loader');
-const axiosClient = axios.create();
-axiosDebugLog.addLogger(axiosClient);
-
-const tagToLinkAttrNameMapping = {
-  img: 'src',
-  link: 'href',
-  script: 'src',
-};
-
-const makeUrlSlug = (url) => {
-  const urlWithoutScheme = url.hostname + url.pathname;
-
-  return urlWithoutScheme.replace(/\W/g, '-');
-};
-
-const makeFileName = (url) => {
-  const originalExtname = path.extname(url.href);
-  const extname = originalExtname || '.html';
-  const urlWithoutExtname = new URL(url.href.replace(originalExtname, ''));
-  const fileSlug = makeUrlSlug(urlWithoutExtname);
-
-  return `${fileSlug}${extname}`;
-};
-
-const makePageFilesDirName = (url) => `${makeUrlSlug(url)}_files`;
-
-const requestGet = (url) => axiosClient.get(url, { responseType: 'arraybuffer' })
-  .catch((e) => {
-    throw new Error(`Error while requesting ${url}: ${e.message}`);
-  });
-
-const writeFile = (destination, data) => fs.writeFile(destination, data)
-  .catch((e) => {
-    throw new Error(`Error while writing file ${destination}: ${e.message}`);
-  });
-
-const modifyHtml = (html, origin, filesDirPath) => {
-  const tagNamesToProcess = Object.keys(tagToLinkAttrNameMapping);
-  const $ = cheerio.load(html, { decodeEntities: false });
-  const filesDirName = path.parse(filesDirPath).base;
-  const resources = [];
-
-  tagNamesToProcess.forEach((tagName) => {
-    const tags = $(tagName);
-    const linkAttrName = tagToLinkAttrNameMapping[tagName];
-
-    tags.each((i, elem) => {
-      const currentLink = $(elem).attr(linkAttrName);
-      const fileUrl = new URL(currentLink, origin);
-
-      if (fileUrl.origin === origin && currentLink) {
-        const fileName = makeFileName(fileUrl);
-        const fileDestination = path.join(filesDirPath, fileName);
-        const fileRelativeDestination = path.join(filesDirName, fileName);
-
-        if (!resources.find((file) => file.url === fileUrl.href)) {
-          resources.push({ url: fileUrl.href, destination: fileDestination });
-        }
-        $(elem).attr(linkAttrName, fileRelativeDestination);
-      }
-    });
-  });
-
-  return {
-    modifiedHtml: $.html(),
-    resources,
-  };
-};
-
-const downloadResources = (resources) => {
-  const tasks = resources.map(({ url: fileUrl, destination: fileDestination }) => ({
-    title: fileUrl,
-    task: () => requestGet(fileUrl)
-      .then(({ data }) => writeFile(fileDestination, data))
-      .then(() => log(`Resource ${fileUrl} written to ${fileDestination}`)),
-  }));
-
-  const listr = new Listr(tasks, { concurrent: true });
-
-  return listr.run();
-};
 
 const pageLoader = (url, dirPath = process.cwd()) => {
   const pageUrl = new URL(url);
@@ -96,9 +19,9 @@ const pageLoader = (url, dirPath = process.cwd()) => {
   const filesDirPath = path.join(dirPath, makePageFilesDirName(pageUrl));
 
   log('Downloading HTML');
-  return requestGet(pageUrl.href)
-    .then(({ data: html }) => {
-      log('Page response received. Modifying HTML');
+  return loadContent(pageUrl.href)
+    .then((html) => {
+      log('Modifying HTML');
       const { modifiedHtml, resources } = modifyHtml(html, pageUrl.origin, filesDirPath);
 
       return {
@@ -110,31 +33,29 @@ const pageLoader = (url, dirPath = process.cwd()) => {
       };
     })
     .then(({ page, resources }) => {
-      log('HTML modified');
       const filesCount = resources.length;
 
       if (filesCount > 0) {
         log(`${filesCount} page resources to download found. Creating files directory`);
 
         return fs.mkdir(filesDirPath)
-          .then(() => {
-            log('Files directory created. Starting downloading page resources');
-            return downloadResources(resources);
-          })
-          .then(() => {
-            log('Page resources downloaded');
-            return page;
-          })
+          .then(() => ({ page, resources }))
           .catch((e) => {
             throw new Error(`Error while creating files directory ${filesDirPath}: ${e.message}`);
           });
       }
 
-      log('No additional resources found');
-      return page;
+      return { page, resources };
     })
-    .then(({ data, destination }) => writeFile(destination, data))
-    .then(() => log(`HTML written to ${resultFilePath}`));
+    .then(({ page, resources }) => {
+      log('Downloading page resources');
+      return downloadResources(resources).then(() => page);
+    })
+    .then(({ data, destination }) => {
+      log(`Writing HTML to ${destination}`);
+      return writeFile(destination, data);
+    })
+    .then(() => resultFilePath);
 };
 
 export default pageLoader;
