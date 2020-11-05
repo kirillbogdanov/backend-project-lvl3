@@ -11,7 +11,7 @@ program
   .version('0.0.1')
   .action((pageUrl) => {
     pageLoader(pageUrl, program.output)
-      .then(() => {})
+      .then((resultFilePath) => console.log(`Page successfully saved to ${resultFilePath}.`))
       .catch((e) => {
         console.error(e.message);
         process.exit(1);
